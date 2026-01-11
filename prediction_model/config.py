@@ -6,11 +6,11 @@ import os
 
 print("✓ Configuration loaded successfully")
 
-# === DIRECTORIES === 
-# IMPORTANT: These must be Path objects, NOT strings!
-PACKAGE_ROOT = Path(__file__).resolve().parent.parent  # Go up 2 levels (config folder -> prediction_model)
+# Directories - Use Path objects
+PACKAGE_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = PACKAGE_ROOT.parent
 
+# Data paths
 DATAPATH = PACKAGE_ROOT / "datasets"  # Path object
 SAVE_MODEL_PATH = PROJECT_ROOT / "trained_models"  # Path object
 
@@ -18,18 +18,18 @@ SAVE_MODEL_PATH = PROJECT_ROOT / "trained_models"  # Path object
 DATAPATH.mkdir(parents=True, exist_ok=True)
 SAVE_MODEL_PATH.mkdir(parents=True, exist_ok=True)
 
-# === MLFLOW CONFIGURATION ===
+# MLflow configuration
 TRACKING_URI = "http://localhost:5000"
 EXPERIMENT_NAME = "loan_prediction_experiment"
-FORCED_RUN_ID = os.getenv("MLFLOW_RUN_ID")
-# === DATA FILES ===
+
+# Data files
 TRAIN_FILE = "train.csv"
 TEST_FILE = "test.csv"
 
-# === TARGET VARIABLE ===
+# Target variable
 TARGET = "Loan_Status"
 
-# === FEATURES ===
+# Features - Update these based on your actual CSV columns
 FEATURES = [
     'Gender', 'Married', 'Dependents', 'Education',
     'Self_Employed', 'ApplicantIncome', 'CoapplicantIncome',
@@ -37,7 +37,7 @@ FEATURES = [
     'Property_Area'
 ]
 
-# === NUMERICAL FEATURES ===
+# Numerical features
 NUM_FEATURES = [
     'ApplicantIncome', 
     'CoapplicantIncome', 
@@ -45,7 +45,7 @@ NUM_FEATURES = [
     'Loan_Amount_Term'
 ]
 
-# === CATEGORICAL FEATURES ===
+# Categorical features
 CAT_FEATURES = [
     'Gender', 
     'Married', 
@@ -56,27 +56,34 @@ CAT_FEATURES = [
     'Credit_History'
 ]
 
-# === FEATURE TRANSFORMATIONS ===
+# Features to encode (categorical)
 FEATURES_TO_ENCODE = CAT_FEATURES.copy()
+
+# Features to apply log transform
 LOG_FEATURES = ['ApplicantIncome', 'LoanAmount']
+
+# Features to drop (if any - empty for now)
 DROP_FEATURES = []
 
-# === FEATURE ENGINEERING ===
+# Feature engineering parameters
 FEATURE_TO_MODIFY = None
 FEATURE_TO_ADD = None
 
-# === MODEL SETTINGS ===
+# Model file name
 MODEL_NAME = "loan_prediction_model.pkl"
 
-# === MLFLOW ARTIFACT ===
-# Must match the 'artifact_path' used in mlflow.sklearn.log_model(...)
-MODEL_ARTIFACT_PATH = "Loanprediction-model"
-
-
-# === VERIFICATION ===
-# Verify types are correct
-assert isinstance(DATAPATH, Path), f"❌ DATAPATH must be Path, got {type(DATAPATH)}"
-assert isinstance(SAVE_MODEL_PATH, Path), f"❌ SAVE_MODEL_PATH must be Path, got {type(SAVE_MODEL_PATH)}"
-
-print(f"   DATAPATH: {DATAPATH} (type: {type(DATAPATH).__name__})")
-print(f"   SAVE_MODEL_PATH: {SAVE_MODEL_PATH} (type: {type(SAVE_MODEL_PATH).__name__})")
+# Print configuration on load
+if __name__ == "__main__":
+    print("\n" + "=" * 70)
+    print("CONFIGURATION SETTINGS")
+    print("=" * 70)
+    print(f"Package Root: {PACKAGE_ROOT}")
+    print(f"Project Root: {PROJECT_ROOT}")
+    print(f"Data Path: {DATAPATH}")
+    print(f"Model Save Path: {SAVE_MODEL_PATH}")
+    print(f"Train File: {TRAIN_FILE}")
+    print(f"Target: {TARGET}")
+    print(f"Number of Features: {len(FEATURES)}")
+    print(f"Numerical Features: {NUM_FEATURES}")
+    print(f"Categorical Features: {CAT_FEATURES}")
+    print("=" * 70)

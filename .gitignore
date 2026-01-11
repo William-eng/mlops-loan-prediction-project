@@ -1,72 +1,48 @@
-# ===============================
-# Python
-# ===============================
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-*.egg-info/
-.eggs/
-
-# ===============================
-# Virtual Environments
-# ===============================
+# Virtual environments
 venv/
 venv-mlops/
-.env
-.env.*
+__pycache__/
+*.pyc
 
-# ===============================
-# Jupyter
-# ===============================
-.ipynb_checkpoints/
+# Data (tracked by DVC)
+prediction_model/datasets/*.csv
+prediction_model/trained_models/*.pkl
 
-# ===============================
-# Data (DO NOT COMMIT DATA)
-# ===============================
-data/
-
-# ===============================
-# Models & Artifacts
-# ===============================
-models/
-
-# ===============================
 # MLflow
-# ===============================
 mlruns/
-mlartifacts/
+mlflow.db
 
-# ===============================
 # DVC
-# ===============================
-.dvc/cache/
-.dvc/tmp/
+.dvc/cache
+.dvc/tmp
 
-# ===============================
-# Logs
-# ===============================
-logs/
-*.log
-
-# ===============================
-# OS / Editors
-# ===============================
-.DS_Store
-Thumbs.db
+# IDE
 .vscode/
 .idea/
 
-# ===============================
-# Tests & Coverage
-# ===============================
-.pytest_cache/
-.coverage
-htmlcov/
+# OS
+.DS_Store
 
-# ===============================
-# Misc
-# ===============================
-*.zip
-*.tar.gz
+# Jupyter
+.ipynb_checkpoints/
+
+/trained_models
+
+# MLflow local artifacts (don’t version these in Git)
+mlartifacts/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual envs (if present inside repo)
+venv/
+env/
+
+# Model binaries and checkpoints
+models/*.pkl
+*.pkl
+
+# DVC cache should not be in Git (DVC manages it)
+.dvc/cache/
+
