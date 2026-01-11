@@ -1,0 +1,15 @@
+
+venv/
+venv-mlops/
+__pycache__/
+*.pyc
+.git/
+.dvc/cache
+.dvc/tmp
+mlruns/
+mlflow.db
+.DS_Store
+.vscode/
+.idea/
+notebooks/
+*.ipynb

@@ -1,0 +1,183 @@
+name: Azure MLOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  ACR_NAME: loanpredictionacr
+  RESOURCE_GROUP: rg-loanprediction
+  CONTAINER_APP_NAME: loanpred-api
+  IMAGE_NAME: loanpred
+
+jobs:
+  # Job 1: Run tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements_mlops.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests
+        run: |
+          pytest tests/ -v --cov=prediction_model --cov-report=term-missing
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  # Job 2: Build and push Docker image to ACR
+  build:
+    name: Build and Push to ACR
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and push Docker image
+        run: |
+          # Build with build number and latest tags
+          docker build \
+            -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest \
+            .
+
+          # Push both tags
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+
+          echo "✓ Image pushed: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+  # Job 3: Deploy to Azure Container Apps
+  deploy-container-apps:
+    name: Deploy to Azure Container Apps
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    # - name: Deploy to Azure Container Apps
+    #   run: |
+    #     az containerapp update \
+    #       --name ${{ env.CONTAINER_APP_NAME }} \
+    #       --resource-group ${{ env.RESOURCE_GROUP }} \
+    #       --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+    #       --set-env-vars \
+    #         AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}"
+
+    # - name: Get Container App URL
+    #   id: get-url
+    #   run: |
+    #     APP_URL=$(az containerapp show \
+    #       --name ${{ env.CONTAINER_APP_NAME }} \
+    #       --resource-group ${{ env.RESOURCE_GROUP }} \
+    #       --query properties.configuration.ingress.fqdn \
+    #       --output tsv)
+    #     echo "APP_URL=$APP_URL" >> $GITHUB_OUTPUT
+    #     echo "✓ Deployed to: https://$APP_URL"
+
+    # - name: Wait for deployment
+    #   run: |
+    #     echo "Waiting for deployment to stabilize..."
+    #     sleep 30
+
+    # - name: Health check
+    #   run: |
+    #     APP_URL=${{ steps.get-url.outputs.APP_URL }}
+    #     HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://$APP_URL/health)
+
+    #     if [ $HEALTH_STATUS -eq 200 ]; then
+    #       echo "✓ Health check passed!"
+    #     else
+    #       echo "✗ Health check failed with status: $HEALTH_STATUS"
+    #       exit 1
+    #     fi
+
+    # - name: Create deployment summary
+    #   run: |
+    #     echo "## Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+    #     echo "" >> $GITHUB_STEP_SUMMARY
+    #     echo "- **Status**: ✅ Successful" >> $GITHUB_STEP_SUMMARY
+    #     echo "- **Environment**: Azure Container Apps" >> $GITHUB_STEP_SUMMARY
+    #     echo "- **Image**: \`${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+    #     echo "- **URL**: https://${{ steps.get-url.outputs.APP_URL }}" >> $GITHUB_STEP_SUMMARY
+    #     echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  # Job 4: Deploy to AKS (Alternative - uncomment if using AKS)
+  deploy-aks:
+    name: Deploy to Azure Kubernetes Service
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name: loanpred-aks
+
+      - name: Create Kubernetes secret
+        run: |
+          kubectl create secret generic azure-secrets \
+            --from-literal=connection-string="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to AKS
+        run: |
+          # Update image in deployment
+          kubectl set image deployment/loanpred-api \
+            loanpred=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+          # Wait for rollout
+          kubectl rollout status deployment/loanpred-api
+
+          # Get service URL
+          kubectl get service loanpred-api
